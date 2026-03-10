@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgis/postgis:15-3.4
+    container_name: taipei_urban_db
+    environment:
+      POSTGRES_DB: taipei_urban
+      POSTGRES_USER: urban
+      POSTGRES_PASSWORD: urban1234
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

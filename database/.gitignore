@@ -1,0 +1,4 @@
+*.sqlite*
+/database/data/shapefiles/
+/database/data/csv/
+.env
