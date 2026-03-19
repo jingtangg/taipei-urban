@@ -33,7 +33,7 @@ class RoadMeasuredController extends BaseController
                     measured_width,
                     avg_width,
                     road_length,
-                    ST_AsGeoJSON(geom) AS geojson
+                    ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geojson
                 FROM roads_measured
             ";
 

@@ -31,7 +31,7 @@ class RoadPlannedController extends BaseController
                     road_width,
                     width_m,
                     width_category,
-                    ST_AsGeoJSON(geom) AS geojson
+                    ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geojson
                 FROM roads_planned
             ";
 

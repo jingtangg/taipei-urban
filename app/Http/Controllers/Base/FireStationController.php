@@ -27,8 +27,8 @@ class FireStationController extends BaseController
                     id,
                     name,
                     address,
-                    ST_X(geom) AS x,
-                    ST_Y(geom) AS y
+                    ST_X(ST_Transform(geom, 4326)) AS x,
+                    ST_Y(ST_Transform(geom, 4326)) AS y
                 FROM fire_stations
                 ORDER BY id
             ");
