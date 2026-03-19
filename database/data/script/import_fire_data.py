@@ -22,8 +22,8 @@ DB_CONFIG = {
 }
 
 # 修改成你本機的 CSV 路徑
-HYDRANT_CSV = "/Users/mini/Developer/personal/taipei-urban/database/data/csv/2.1_fire_hydrants.csv"
-STATION_CSV = "/Users/mini/Developer/personal/taipei-urban/database/data/csv/2.2_fire_stations.csv"
+HYDRANT_CSV = "database/data/csv/2.1_fire_hydrants.csv"
+STATION_CSV = "database/data/csv/2.2_fire_stations.csv"
 # ============================================================
 
 
