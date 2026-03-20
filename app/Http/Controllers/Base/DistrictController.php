@@ -17,8 +17,8 @@ class DistrictController extends BaseController
     }
 
     /**
-     * 回傳所有行政區的基本資訊（含幾何邊界）
-     * 統一格式供前端使用
+     * 回傳所有行政區的基本資訊（不含幾何）
+     * 用於下拉選單、統計列表等輕量查詢
      */
     public function index()
     {
@@ -26,9 +26,8 @@ class DistrictController extends BaseController
             $districts = DB::select("
                 SELECT
                     id,
-                    district_name,
-                    ROUND((area_m2 / 1000000)::numeric, 2) AS area_km2,
-                    ST_AsGeoJSON(ST_Transform(geom, 4326))::json AS geometry
+                    district_name AS name,
+                    ROUND((area_m2 / 1000000)::numeric, 2) AS area_km2
                 FROM districts
                 ORDER BY district_name
             ");
@@ -36,11 +35,8 @@ class DistrictController extends BaseController
             $tableList = array_map(function($district) {
                 return [
                     'id' => (string)$district->id,
-                    'name' => $district->district_name,
+                    'name' => (string)$district->name,
                     'area_km2' => (float)$district->area_km2,
-                    'geometry' => json_decode($district->geometry),
-                    'narrowDensity' => 0,
-                    'hydrantDensity' => 0,
                 ];
             }, $districts);
 
@@ -59,48 +55,65 @@ class DistrictController extends BaseController
     }
 
     /**
-     * 回傳所有行政區的 GeoJSON 格式（含幾何邊界）
-     * 用於地圖圖層顯示
+     * 回傳所有行政區的完整資料（含幾何邊界與風險統計）
+     * 用於地圖圖層顯示與統計面板
      */
     public function geojson()
     {
         try {
-            $districts = DB::select("
-                SELECT
-                    id,
-                    district_name,
-                    ROUND((area_m2 / 1000000)::numeric, 2) AS area_km2,
-                    ST_AsGeoJSON(ST_Transform(geom, 4326))::json AS geometry
-                FROM districts
-                ORDER BY district_name
-            ");
+            // 查詢行政區基本資料與幾何邊界
+            $districts = DB::table('districts')
+                ->select(DB::raw('
+                    districts.id,
+                    districts.district_name AS name,
+                    ROUND((districts.area_m2 / 1000000)::numeric, 2) AS area_km2,
+                    ST_AsGeoJSON(ST_Transform(districts.geom, 4326)) AS geometry
+                '))
+                ->orderBy('districts.district_name')
+                ->get();
 
-            // 轉換成 GeoJSON FeatureCollection 格式
-            $features = array_map(function($district) {
+            // 計算每個行政區的窄巷密度與消防栓密度
+            $tableList = $districts->map(function($district) {
+                // 窄巷密度：窄巷總長度(km) / 區域面積(km²)
+                $narrowRoadLength = DB::table('roads_measured')
+                    ->where('district', $district->name)
+                    ->where('avg_width', '<', 4)
+                    ->selectRaw('SUM(ST_Length(geom)) / 1000 as total_length')
+                    ->value('total_length') ?? 0;
+
+                $narrowDensity = $district->area_km2 > 0
+                    ? round($narrowRoadLength / $district->area_km2, 2)
+                    : 0;
+
+                // 消防栓密度：消防栓數量 / 區域面積(km²)
+                $hydrantCount = DB::table('fire_hydrants')
+                    ->where('district', $district->name)
+                    ->count();
+
+                $hydrantDensity = $district->area_km2 > 0
+                    ? round($hydrantCount / $district->area_km2, 1)
+                    : 0;
+
                 return [
-                    'type' => 'Feature',
-                    'id' => $district->id,
-                    'properties' => [
-                        'id' => $district->id,
-                        'district_name' => $district->district_name,
-                        'area_km2' => $district->area_km2,
-                    ],
-                    'geometry' => json_decode($district->geometry),
+                    'id' => (string)$district->id,
+                    'name' => (string)$district->name,
+                    'area_km2' => (float)$district->area_km2,
+                    'geometry' => json_decode($district->geometry, true),
+                    'narrowDensity' => (float)$narrowDensity,
+                    'hydrantDensity' => (float)$hydrantDensity,
                 ];
-            }, $districts);
+            })->toArray();
 
-            $geojson = [
-                'type' => 'FeatureCollection',
-                'features' => $features,
-            ];
-
-            return $this->sendResponse($geojson, '獲取行政區 GeoJSON 成功!');
+            return $this->sendResponse([
+                'tableList' => array_values($tableList),
+                'total' => count($tableList),
+            ], '獲取行政區資料成功!');
 
         } catch (Exception $e) {
             if ($this->debug == true) {
                 return $this->sendError($e->getMessage(), ['error' => $e->getMessage()]);
             } else {
-                return $this->sendError('獲取行政區 GeoJSON 錯誤,錯誤代碼「DT012」,請通知管理員!!', ['error' => '獲取行政區 GeoJSON 錯誤,錯誤代碼「DT012」,請通知管理員!!']);
+                return $this->sendError('獲取行政區資料錯誤,錯誤代碼「DT012」,請通知管理員!!', ['error' => '獲取行政區資料錯誤,錯誤代碼「DT012」,請通知管理員!!']);
             }
         }
     }
