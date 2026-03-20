@@ -17,25 +17,34 @@ class FireStationController extends BaseController
     }
 
     /**
-     * 回傳所有消防隊點位
+     * 回傳所有消防隊點位（含 GeoJSON 幾何）
+     * 用於地圖圖層顯示
      */
     public function index()
     {
         try {
-            $results = DB::select("
-                SELECT
+            $stations = DB::table('fire_stations')
+                ->select(DB::raw('
                     id,
                     name,
                     address,
-                    ST_X(ST_Transform(geom, 4326)) AS x,
-                    ST_Y(ST_Transform(geom, 4326)) AS y
-                FROM fire_stations
-                ORDER BY id
-            ");
+                    ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geometry
+                '))
+                ->orderBy('id')
+                ->get();
+
+            $tableList = $stations->map(function($station) {
+                return [
+                    'id' => (string)$station->id,
+                    'name' => (string)$station->name,
+                    'address' => (string)$station->address,
+                    'geometry' => json_decode($station->geometry, true),
+                ];
+            })->toArray();
 
             return $this->sendResponse([
-                'tableList' => $results,
-                'total' => count($results),
+                'tableList' => array_values($tableList),
+                'total' => count($tableList),
             ], '獲取消防局資料成功!');
 
         } catch (Exception $e) {
