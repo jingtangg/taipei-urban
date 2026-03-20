@@ -17,34 +17,36 @@ class FireHydrantController extends BaseController
     }
 
     /**
-     * 回傳消防栓列表
-     * 支援 ?district=萬華區 篩選
+     * 回傳所有消防栓點位（含 GeoJSON 幾何）
+     * 用於地圖圖層顯示
      */
     public function index()
     {
         try {
-            $district = request('district');
-
-            $query = "
-                SELECT
+            $hydrants = DB::table('fire_hydrants')
+                ->select(DB::raw('
                     id,
                     wpid,
                     type,
                     district,
-                    ST_X(ST_Transform(geom, 4326)) AS x,
-                    ST_Y(ST_Transform(geom, 4326)) AS y
-                FROM fire_hydrants
-            ";
+                    ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geometry
+                '))
+                ->orderBy('id')
+                ->get();
 
-            if ($district) {
-                $results = DB::select($query . " WHERE district = ? ORDER BY id", [$district]);
-            } else {
-                $results = DB::select($query . " ORDER BY id");
-            }
+            $tableList = $hydrants->map(function($hydrant) {
+                return [
+                    'id' => (string)$hydrant->id,
+                    'wpid' => (string)$hydrant->wpid,
+                    'type' => (string)$hydrant->type,
+                    'district' => (string)$hydrant->district,
+                    'geometry' => json_decode($hydrant->geometry, true),
+                ];
+            })->toArray();
 
             return $this->sendResponse([
-                'tableList' => $results,
-                'total' => count($results),
+                'tableList' => array_values($tableList),
+                'total' => count($tableList),
             ], '獲取消防栓資料成功!');
 
         } catch (Exception $e) {
