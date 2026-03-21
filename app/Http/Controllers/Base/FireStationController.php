@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Base;
 
 use App\Http\Controllers\API\BaseController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\App;
 use Exception;
@@ -17,21 +18,32 @@ class FireStationController extends BaseController
     }
 
     /**
-     * 回傳所有消防隊點位（含 GeoJSON 幾何）
+     * 回傳消防隊點位（含 GeoJSON 幾何）
      * 用於地圖圖層顯示
+     * 可透過 ?district=大同區 篩選特定行政區（空間過濾）
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $stations = DB::table('fire_stations')
+            $query = DB::table('fire_stations')
                 ->select(DB::raw('
                     id,
                     name,
                     address,
                     ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geometry
                 '))
-                ->orderBy('id')
-                ->get();
+                ->orderBy('id');
+
+            if ($request->filled('district')) {
+                $query->whereRaw('
+                    ST_Within(
+                        fire_stations.geom,
+                        (SELECT geom FROM districts WHERE district_name = ? LIMIT 1)
+                    )
+                ', [$request->input('district')]);
+            }
+
+            $stations = $query->get();
 
             $tableList = $stations->map(function($station) {
                 return [

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Base;
 
 use App\Http\Controllers\API\BaseController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\App;
 use Exception;
@@ -17,13 +18,14 @@ class FireHydrantController extends BaseController
     }
 
     /**
-     * 回傳所有消防栓點位（含 GeoJSON 幾何）
+     * 回傳消防栓點位（含 GeoJSON 幾何）
      * 用於地圖圖層顯示
+     * 可透過 ?district=大同區 篩選特定行政區
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $hydrants = DB::table('fire_hydrants')
+            $query = DB::table('fire_hydrants')
                 ->select(DB::raw('
                     id,
                     wpid,
@@ -31,8 +33,13 @@ class FireHydrantController extends BaseController
                     district,
                     ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geometry
                 '))
-                ->orderBy('id')
-                ->get();
+                ->orderBy('id');
+
+            if ($request->filled('district')) {
+                $query->where('district', $request->input('district'));
+            }
+
+            $hydrants = $query->get();
 
             $tableList = $hydrants->map(function($hydrant) {
                 return [
