@@ -75,9 +75,15 @@ class DistrictController extends BaseController
             // 計算每個行政區的窄巷密度與消防栓密度
             $tableList = $districts->map(function($district) {
                 // 窄巷密度：窄巷總長度(km) / 區域面積(km²)
-                $narrowRoadLength = DB::table('roads_measured')
-                    ->where('district', $district->name)
-                    ->where('avg_width', '<', 4)
+                // 使用 roads_planned（都市計畫道路）中 width_category = 'narrow'（< 3.5m）的路段
+                $narrowRoadLength = DB::table('roads_planned')
+                    ->where('width_category', 'narrow')
+                    ->whereRaw('
+                        ST_Within(
+                            roads_planned.geom,
+                            (SELECT geom FROM districts WHERE district_name = ? LIMIT 1)
+                        )
+                    ', [$district->name])
                     ->selectRaw('SUM(ST_Length(geom)) / 1000 as total_length')
                     ->value('total_length') ?? 0;
 

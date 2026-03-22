@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Base;
 
 use App\Http\Controllers\API\BaseController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\App;
 use Exception;
@@ -17,33 +18,52 @@ class RoadPlannedController extends BaseController
     }
 
     /**
-     * 回傳計畫道路列表
-     * 支援 ?category=narrow|mid|wide 篩選
+     * 回傳計畫道路列表（含 GeoJSON 幾何）
+     * 用於地圖圖層顯示
+     * 可透過 ?district=大同區 篩選特定行政區（空間過濾）
+     * 可透過 ?category=narrow|mid|wide 篩選寬度分級
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $category = request('category');
-
-            $query = "
-                SELECT
+            $query = DB::table('roads_planned')
+                ->select(DB::raw('
                     id,
                     road_width,
                     width_m,
                     width_category,
-                    ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geojson
-                FROM roads_planned
-            ";
+                    ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geometry
+                '))
+                ->orderBy('id');
 
-            if ($category) {
-                $results = DB::select($query . " WHERE width_category = ? ORDER BY id", [$category]);
-            } else {
-                $results = DB::select($query . " ORDER BY id");
+            if ($request->filled('district')) {
+                $query->whereRaw('
+                    ST_Within(
+                        roads_planned.geom,
+                        (SELECT geom FROM districts WHERE district_name = ? LIMIT 1)
+                    )
+                ', [$request->input('district')]);
             }
 
+            if ($request->filled('category')) {
+                $query->where('width_category', $request->input('category'));
+            }
+
+            $results = $query->get();
+
+            $tableList = $results->map(function($road) {
+                return [
+                    'id' => (string)$road->id,
+                    'road_width' => (string)$road->road_width,
+                    'width_m' => (float)$road->width_m,
+                    'width_category' => (string)$road->width_category,
+                    'geometry' => json_decode($road->geometry, true),
+                ];
+            })->toArray();
+
             return $this->sendResponse([
-                'tableList' => $results,
-                'total' => count($results),
+                'tableList' => array_values($tableList),
+                'total' => count($tableList),
             ], '獲取計畫道路資料成功!');
 
         } catch (Exception $e) {
