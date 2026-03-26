@@ -74,30 +74,36 @@ class DistrictController extends BaseController
 
             // 計算每個行政區的窄巷密度與消防栓密度
             $tableList = $districts->map(function($district) {
-                // 窄巷密度：窄巷總長度(km) / 區域面積(km²)
-                // 使用 roads_planned（都市計畫道路）中 width_category = 'narrow'（< 3.5m）的路段
-                $narrowRoadLength = DB::table('roads_planned')
-                    ->where('width_category', 'narrow')
-                    ->whereRaw('
-                        ST_Within(
-                            roads_planned.geom,
-                            (SELECT geom FROM districts WHERE district_name = ? LIMIT 1)
-                        )
-                    ', [$district->name])
-                    ->selectRaw('SUM(ST_Length(geom)) / 1000 as total_length')
-                    ->value('total_length') ?? 0;
+                // 窄巷密度：窄巷總數 (條/km²)
+                // 使用 Dashboard 相同邏輯：計畫 < 6m + 實測新增
+
+                // 1. 都市計畫窄巷 (< 6m)
+                $plannedCount = DB::selectOne("
+                    SELECT COUNT(*) as cnt
+                    FROM roads_planned rp
+                    INNER JOIN districts d ON ST_Intersects(rp.geom, d.geom)
+                    WHERE rp.width_m < 6
+                      AND d.district_name = ?
+                ", [$district->name])->cnt;
+
+                // 2. 消防局實測窄巷
+                $actualQuery = DB::table('narrow_alleys_temp as na')
+                    ->join('roads_planned as rp', 'na.matched_road_id', '=', 'rp.id')
+                    ->where('na.district', $district->name);
+                $actualCount = $actualQuery->count();
+
+                // 3. 重疊數量
+                $overlapQuery = DB::table('narrow_alleys_temp as na')
+                    ->join('roads_planned as rp', 'na.matched_road_id', '=', 'rp.id')
+                    ->where('rp.width_m', '<', 6)
+                    ->where('na.district', $district->name);
+                $overlapCount = $overlapQuery->count();
+
+                // 4. 總數 = 計畫 + (實測 - 重疊)
+                $totalCount = $plannedCount + ($actualCount - $overlapCount);
 
                 $narrowDensity = $district->area_km2 > 0
-                    ? round($narrowRoadLength / $district->area_km2, 2)
-                    : 0;
-
-                // 消防栓密度：消防栓數量 / 區域面積(km²)
-                $hydrantCount = DB::table('fire_hydrants')
-                    ->where('district', $district->name)
-                    ->count();
-
-                $hydrantDensity = $district->area_km2 > 0
-                    ? round($hydrantCount / $district->area_km2, 1)
+                    ? round($totalCount / $district->area_km2, 1)
                     : 0;
 
                 return [
@@ -106,7 +112,6 @@ class DistrictController extends BaseController
                     'area_km2' => (float)$district->area_km2,
                     'geometry' => json_decode($district->geometry, true),
                     'narrowDensity' => (float)$narrowDensity,
-                    'hydrantDensity' => (float)$hydrantDensity,
                 ];
             })->toArray();
 
