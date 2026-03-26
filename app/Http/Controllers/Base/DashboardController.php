@@ -168,4 +168,70 @@ class DashboardController extends BaseController
             }
         }
     }
+
+    /**
+     * 回傳消防栓統計數據
+     * 可透過 ?district=大安區 篩選特定行政區
+     * 不傳 district 則回傳全台北市統計
+     *
+     * 計算公式:
+     * - 消防栓密度 (個/km²) = 該區消防栓數量 / 該區面積 (km²)
+     * - 平均服務半徑 (m) = √(區域面積 / 消防栓數量 / π)
+     */
+    public function hydrantStatistics(Request $request)
+    {
+        try {
+            $district = $request->input('district');
+
+            $cacheKey = $district ? "hydrant_stats_{$district}" : 'hydrant_stats_all';
+
+            return Cache::remember($cacheKey, 3600, function () use ($district) {
+                if ($district) {
+                    // 單一行政區統計
+                    $result = DB::selectOne("
+                        SELECT
+                            COUNT(fh.id) as total_count,
+                            d.area_m2 / 1000000.0 as area_km2
+                        FROM districts d
+                        LEFT JOIN fire_hydrants fh ON ST_Intersects(
+                            fh.geom,
+                            d.geom
+                        )
+                        WHERE d.district_name = ?
+                        GROUP BY d.district_name, d.area_m2
+                    ", [$district]);
+                } else {
+                    // 全市統計
+                    $result = DB::selectOne("
+                        SELECT
+                            (SELECT COUNT(*) FROM fire_hydrants) as total_count,
+                            SUM(area_m2) / 1000000.0 as area_km2
+                        FROM districts
+                    ");
+                }
+
+                $totalCount = (int)$result->total_count;
+                $areaKm2 = (float)$result->area_km2;
+
+                // 計算密度 (個/km²)
+                $density = $areaKm2 > 0 ? round($totalCount / $areaKm2, 1) : 0;
+
+                // 計算平均服務半徑 (m): √(面積 / 數量 / π)
+                $serviceRadius = $totalCount > 0 ? round(sqrt(($areaKm2 * 1000000) / $totalCount / pi()), 0) : 0;
+
+                return $this->sendResponse([
+                    'total_count' => $totalCount,
+                    'density' => $density,
+                    'service_radius' => $serviceRadius,
+                ], '獲取消防栓統計成功!');
+            });
+
+        } catch (Exception $e) {
+            if ($this->debug == true) {
+                return $this->sendError($e->getMessage(), ['error' => $e->getMessage()]);
+            } else {
+                return $this->sendError('獲取消防栓統計錯誤,錯誤代碼「DASH003」,請通知管理員!!', ['error' => '獲取消防栓統計錯誤,錯誤代碼「DASH003」,請通知管理員!!']);
+            }
+        }
+    }
 }

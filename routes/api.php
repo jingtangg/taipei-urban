@@ -21,3 +21,4 @@ Route::get('/roads/measured', [RoadMeasuredController::class, 'index']);
 Route::get('/narrow-alleys', [NarrowAlleyController::class, 'index']);
 Route::get('/dashboard/narrow-alley-statistics', [DashboardController::class, 'narrowAlleyStatistics']);
 Route::get('/dashboard/district-rankings', [DashboardController::class, 'districtRankings']);
+Route::get('/dashboard/hydrant-statistics', [DashboardController::class, 'hydrantStatistics']);
