@@ -132,14 +132,18 @@ class DashboardController extends BaseController
                         d.district_name,
                         d.area_m2 / 1000000.0 as area_km2,
                         COUNT(a.*) as total_count,
-                        COALESCE(SUM(a.length_m), 0) as total_length_m
+                        COALESCE(SUM(a.length_m), 0) as total_length_m,
+                        CASE WHEN d.area_m2 > 0
+                            THEN COUNT(a.*) / (d.area_m2 / 1000000.0)
+                            ELSE 0
+                        END as density
                     FROM districts d
                     LEFT JOIN all_alleys a ON ST_Intersects(
                         a.geom,
                         ST_Transform(d.geom, 4326)
                     )
                     GROUP BY d.district_name, d.area_m2
-                    ORDER BY total_length_m DESC
+                    ORDER BY density DESC
                 ");
 
                 $rankings = [];
