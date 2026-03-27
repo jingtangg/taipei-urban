@@ -67,7 +67,8 @@ class DistrictController extends BaseController
                     districts.id,
                     districts.district_name AS name,
                     ROUND((districts.area_m2 / 1000000)::numeric, 2) AS area_km2,
-                    ST_AsGeoJSON(ST_Transform(districts.geom, 4326)) AS geometry
+                    ST_AsGeoJSON(ST_Transform(districts.geom, 4326)) AS geometry,
+                    ST_AsText(ST_Transform(ST_Centroid(districts.geom), 4326)) AS label_center
                 '))
                 ->orderBy('districts.district_name')
                 ->get();
@@ -111,6 +112,7 @@ class DistrictController extends BaseController
                     'name' => (string)$district->name,
                     'area_km2' => (float)$district->area_km2,
                     'geometry' => json_decode($district->geometry, true),
+                    'label_center' => $district->label_center,
                     'narrowDensity' => (float)$narrowDensity,
                 ];
             })->toArray();
