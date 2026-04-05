@@ -55,19 +55,19 @@ class DistrictController extends BaseController
     }
 
     /**
-     * 回傳所有行政區的完整資料（含幾何邊界與風險統計）
-     * 用於地圖圖層顯示與統計面板
+     * 回傳所有行政區的風險統計資料（不含幾何邊界）
+     * 幾何邊界由 GeoServer WMS 負責渲染（districts_density SQL View）
+     * 此 endpoint 提供：label_center（前端縮放動畫用）、narrowDensity（前端標籤顏色用）
      */
     public function geojson()
     {
         try {
-            // 查詢行政區基本資料與幾何邊界
+            // 查詢行政區基本資料與中心點（不含幾何邊界）
             $districts = DB::table('districts')
                 ->select(DB::raw('
                     districts.id,
                     districts.district_name AS name,
                     ROUND((districts.area_m2 / 1000000)::numeric, 2) AS area_km2,
-                    ST_AsGeoJSON(ST_Transform(districts.geom, 4326)) AS geometry,
                     ST_AsText(ST_Transform(ST_Centroid(districts.geom), 4326)) AS label_center
                 '))
                 ->orderBy('districts.district_name')
@@ -111,7 +111,6 @@ class DistrictController extends BaseController
                     'id' => (string)$district->id,
                     'name' => (string)$district->name,
                     'area_km2' => (float)$district->area_km2,
-                    'geometry' => json_decode($district->geometry, true),
                     'label_center' => $district->label_center,
                     'narrowDensity' => (float)$narrowDensity,
                 ];

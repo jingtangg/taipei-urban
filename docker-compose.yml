@@ -11,5 +11,19 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  geoserver:
+    image: docker.osgeo.org/geoserver:2.25.x
+    container_name: taipei_urban_geoserver
+    environment:
+      GEOSERVER_ADMIN_USER: admin
+      GEOSERVER_ADMIN_PASSWORD: geoserver
+    ports:
+      - "8090:8080"
+    volumes:
+      - geoserver_data:/opt/geoserver_data
+    depends_on:
+      - db
+
 volumes:
   pgdata:
+  geoserver_data:
