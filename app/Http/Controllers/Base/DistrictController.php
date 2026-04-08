@@ -59,7 +59,7 @@ class DistrictController extends BaseController
      * 幾何邊界由 GeoServer WMS 負責渲染（districts_density SQL View）
      * 此 endpoint 提供：label_center（前端縮放動畫用）、narrowDensity（前端標籤顏色用）
      */
-    public function geojson()
+    public function metadata()
     {
         try {
             // 查詢行政區基本資料與中心點（不含幾何邊界）

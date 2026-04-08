@@ -13,7 +13,7 @@ use App\Http\Controllers\Base\NarrowAlleyController;
 use App\Http\Controllers\Base\DashboardController;
 
 Route::get('/districts', [DistrictController::class, 'index']);
-Route::get('/districts/geojson', [DistrictController::class, 'geojson']);
+Route::get('/districts/metadata', [DistrictController::class, 'metadata']);
 Route::get('/fire-hydrants', [FireHydrantController::class, 'index']);
 Route::get('/fire-stations', [FireStationController::class, 'index']);
 Route::get('/roads/planned', [RoadPlannedController::class, 'index']);
