@@ -12,13 +12,14 @@ use App\Http\Controllers\Base\RoadPlannedController;
 use App\Http\Controllers\Base\NarrowAlleyController;
 use App\Http\Controllers\Base\DashboardController;
 
-Route::get('/districts', [DistrictController::class, 'index']);
-Route::get('/districts/metadata', [DistrictController::class, 'metadata']);
-Route::get('/fire-hydrants', [FireHydrantController::class, 'index']);
-Route::get('/fire-stations', [FireStationController::class, 'index']);
-Route::get('/roads/planned', [RoadPlannedController::class, 'index']);
-
-Route::get('/narrow-alleys', [NarrowAlleyController::class, 'index']);
-Route::get('/dashboard/narrow-alley-statistics', [DashboardController::class, 'narrowAlleyStatistics']);
-Route::get('/dashboard/district-rankings', [DashboardController::class, 'districtRankings']);
-Route::get('/dashboard/hydrant-statistics', [DashboardController::class, 'hydrantStatistics']);
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/districts', [DistrictController::class, 'index']);
+    Route::get('/districts/metadata', [DistrictController::class, 'metadata']);
+    Route::get('/fire-hydrants', [FireHydrantController::class, 'index']);
+    Route::get('/fire-stations', [FireStationController::class, 'index']);
+    Route::get('/roads/planned', [RoadPlannedController::class, 'index']);
+    Route::get('/narrow-alleys', [NarrowAlleyController::class, 'index']);
+    Route::get('/dashboard/narrow-alley-statistics', [DashboardController::class, 'narrowAlleyStatistics']);
+    Route::get('/dashboard/district-rankings', [DashboardController::class, 'districtRankings']);
+    Route::get('/dashboard/hydrant-statistics', [DashboardController::class, 'hydrantStatistics']);
+});
