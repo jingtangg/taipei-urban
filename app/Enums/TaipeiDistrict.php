@@ -1,0 +1,11 @@
+<?php
+
+namespace App\Enums;
+
+class TaipeiDistrict
+{
+    const ALL = [
+        '松山區', '信義區', '大安區', '中山區', '中正區', '大同區',
+        '萬華區', '文山區', '南港區', '內湖區', '士林區', '北投區',
+    ];
+}

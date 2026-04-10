@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Base;
 
 use App\Http\Controllers\API\BaseController;
-use Illuminate\Http\Request;
+use App\Http\Requests\DashboardFilterRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cache;
@@ -23,7 +23,7 @@ class DashboardController extends BaseController
      * 可透過 ?district=大安區 篩選特定行政區
      * 不傳 district 則回傳全台北市統計
      */
-    public function narrowAlleyStatistics(Request $request)
+    public function narrowAlleyStatistics(DashboardFilterRequest $request)
     {
         try {
             $district = $request->input('district');
@@ -182,7 +182,7 @@ class DashboardController extends BaseController
      * - 消防栓密度 (個/km²) = 該區消防栓數量 / 該區面積 (km²)
      * - 平均服務半徑 (m) = √(區域面積 / 消防栓數量 / π)
      */
-    public function hydrantStatistics(Request $request)
+    public function hydrantStatistics(DashboardFilterRequest $request)
     {
         try {
             $district = $request->input('district');

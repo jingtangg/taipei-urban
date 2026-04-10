@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Base;
 
 use App\Http\Controllers\API\BaseController;
-use Illuminate\Http\Request;
+use App\Http\Requests\NarrowAlleyRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\App;
 use Exception;
@@ -23,7 +23,7 @@ class NarrowAlleyController extends BaseController
      * 可透過 ?district=大安區 篩選特定行政區
      * 可透過 ?category=紅區 篩選紅區/黃區
      */
-    public function index(Request $request)
+    public function index(NarrowAlleyRequest $request)
     {
         try {
             $query = DB::table('narrow_alleys_temp as na')

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Base;
 
 use App\Http\Controllers\API\BaseController;
-use Illuminate\Http\Request;
+use App\Http\Requests\FireHydrantRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\App;
 use Exception;
@@ -22,7 +22,7 @@ class FireHydrantController extends BaseController
      * 用於地圖圖層顯示
      * 可透過 ?district=大同區 篩選特定行政區
      */
-    public function index(Request $request)
+    public function index(FireHydrantRequest $request)
     {
         try {
             $query = DB::table('fire_hydrants')
