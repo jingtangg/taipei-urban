@@ -40,6 +40,7 @@ class DistrictController extends BaseController
             ], '獲取行政區資料成功!');
 
         } catch (Exception $e) {
+            report($e);
             return $this->debug
                 ? $this->sendError($e->getMessage(), ['error' => $e->getMessage()])
                 : $this->sendError('獲取行政區資料錯誤,錯誤代碼「DT011」,請通知管理員!!', ['error' => '獲取行政區資料錯誤,錯誤代碼「DT011」,請通知管理員!!']);
@@ -57,7 +58,7 @@ class DistrictController extends BaseController
             $districts = $this->repository->getAllWithMetadata();
 
             $tableList = $districts->map(function ($district) {
-                $totalCount   = $this->repository->getNarrowAlleyCount($district->name);
+                $totalCount    = $this->repository->getNarrowAlleyCount($district->name);
                 $narrowDensity = $district->area_km2 > 0
                     ? round($totalCount / $district->area_km2, 1)
                     : 0;
@@ -77,6 +78,7 @@ class DistrictController extends BaseController
             ], '獲取行政區資料成功!');
 
         } catch (Exception $e) {
+            report($e);
             return $this->debug
                 ? $this->sendError($e->getMessage(), ['error' => $e->getMessage()])
                 : $this->sendError('獲取行政區資料錯誤,錯誤代碼「DT012」,請通知管理員!!', ['error' => '獲取行政區資料錯誤,錯誤代碼「DT012」,請通知管理員!!']);

@@ -46,6 +46,7 @@ class FireHydrantController extends BaseController
             ], '獲取消防栓資料成功!');
 
         } catch (Exception $e) {
+            report($e);
             return $this->debug
                 ? $this->sendError($e->getMessage(), ['error' => $e->getMessage()])
                 : $this->sendError('獲取消防栓資料錯誤,錯誤代碼「FH011」,請通知管理員!!', ['error' => '獲取消防栓資料錯誤,錯誤代碼「FH011」,請通知管理員!!']);

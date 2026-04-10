@@ -36,6 +36,7 @@ class DashboardController extends BaseController
             });
 
         } catch (Exception $e) {
+            report($e);
             return $this->debug
                 ? $this->sendError($e->getMessage(), ['error' => $e->getMessage()])
                 : $this->sendError('獲取窄巷統計錯誤,錯誤代碼「DASH001」,請通知管理員!!', ['error' => '獲取窄巷統計錯誤,錯誤代碼「DASH001」,請通知管理員!!']);
@@ -55,6 +56,7 @@ class DashboardController extends BaseController
             });
 
         } catch (Exception $e) {
+            report($e);
             return $this->debug
                 ? $this->sendError($e->getMessage(), ['error' => $e->getMessage()])
                 : $this->sendError('獲取行政區排名錯誤,錯誤代碼「DASH002」,請通知管理員!!', ['error' => '獲取行政區排名錯誤,錯誤代碼「DASH002」,請通知管理員!!']);
@@ -78,6 +80,7 @@ class DashboardController extends BaseController
             });
 
         } catch (Exception $e) {
+            report($e);
             return $this->debug
                 ? $this->sendError($e->getMessage(), ['error' => $e->getMessage()])
                 : $this->sendError('獲取消防栓統計錯誤,錯誤代碼「DASH003」,請通知管理員!!', ['error' => '獲取消防栓統計錯誤,錯誤代碼「DASH003」,請通知管理員!!']);

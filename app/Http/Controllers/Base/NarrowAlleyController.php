@@ -52,6 +52,7 @@ class NarrowAlleyController extends BaseController
             ], '獲取窄巷資料成功!');
 
         } catch (Exception $e) {
+            report($e);
             return $this->debug
                 ? $this->sendError($e->getMessage(), ['error' => $e->getMessage()])
                 : $this->sendError('獲取窄巷資料錯誤,錯誤代碼「NA011」,請通知管理員!!', ['error' => '獲取窄巷資料錯誤,錯誤代碼「NA011」,請通知管理員!!']);
