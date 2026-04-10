@@ -55,12 +55,11 @@ class DistrictController extends BaseController
     public function metadata(): JsonResponse
     {
         try {
-            $districts = $this->repository->getAllWithMetadata();
+            $districts = $this->repository->getAllWithNarrowAlleyCounts();
 
             $tableList = $districts->map(function ($district) {
-                $totalCount    = $this->repository->getNarrowAlleyCount($district->name);
                 $narrowDensity = $district->area_km2 > 0
-                    ? round($totalCount / $district->area_km2, 1)
+                    ? round($district->narrow_count / $district->area_km2, 1)
                     : 0;
 
                 return [
