@@ -4,15 +4,16 @@ namespace App\Http\Controllers\Base;
 
 use App\Http\Controllers\API\BaseController;
 use App\Http\Requests\FireHydrantRequest;
-use Illuminate\Support\Facades\DB;
+use App\Repositories\FireHydrantRepository;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\App;
 use Exception;
 
 class FireHydrantController extends BaseController
 {
-    protected $debug = null;
+    protected bool $debug;
 
-    public function __construct()
+    public function __construct(private FireHydrantRepository $repository)
     {
         $this->debug = App::hasDebugModeEnabled();
     }
@@ -22,46 +23,32 @@ class FireHydrantController extends BaseController
      * 用於地圖圖層顯示
      * 可透過 ?district=大同區 篩選特定行政區
      */
-    public function index(FireHydrantRequest $request)
+    public function index(FireHydrantRequest $request): JsonResponse
     {
         try {
-            $query = DB::table('fire_hydrants')
-                ->select(DB::raw('
-                    id,
-                    wpid,
-                    type,
-                    district,
-                    ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geometry
-                '))
-                ->orderBy('id');
+            $hydrants = $this->repository->getFiltered(
+                $request->validated()['district'] ?? null
+            );
 
-            if ($request->filled('district')) {
-                $query->where('district', $request->input('district'));
-            }
-
-            $hydrants = $query->get();
-
-            $tableList = $hydrants->map(function($hydrant) {
+            $tableList = $hydrants->map(function ($hydrant) {
                 return [
-                    'id' => (string)$hydrant->id,
-                    'wpid' => (string)$hydrant->wpid,
-                    'type' => (string)$hydrant->type,
-                    'district' => (string)$hydrant->district,
+                    'id'       => (string) $hydrant->id,
+                    'wpid'     => (string) $hydrant->wpid,
+                    'type'     => (string) $hydrant->type,
+                    'district' => (string) $hydrant->district,
                     'geometry' => json_decode($hydrant->geometry, true),
                 ];
             })->toArray();
 
             return $this->sendResponse([
                 'tableList' => array_values($tableList),
-                'total' => count($tableList),
+                'total'     => count($tableList),
             ], '獲取消防栓資料成功!');
 
         } catch (Exception $e) {
-            if ($this->debug == true) {
-                return $this->sendError($e->getMessage(), ['error' => $e->getMessage()]);
-            } else {
-                return $this->sendError('獲取消防栓資料錯誤,錯誤代碼「FH011」,請通知管理員!!', ['error' => '獲取消防栓資料錯誤,錯誤代碼「FH011」,請通知管理員!!']);
-            }
+            return $this->debug
+                ? $this->sendError($e->getMessage(), ['error' => $e->getMessage()])
+                : $this->sendError('獲取消防栓資料錯誤,錯誤代碼「FH011」,請通知管理員!!', ['error' => '獲取消防栓資料錯誤,錯誤代碼「FH011」,請通知管理員!!']);
         }
     }
 }

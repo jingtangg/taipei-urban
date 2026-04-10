@@ -4,15 +4,16 @@ namespace App\Http\Controllers\Base;
 
 use App\Http\Controllers\API\BaseController;
 use App\Http\Requests\RoadPlannedRequest;
-use Illuminate\Support\Facades\DB;
+use App\Repositories\RoadPlannedRepository;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\App;
 use Exception;
 
 class RoadPlannedController extends BaseController
 {
-    protected $debug = null;
+    protected bool $debug;
 
-    public function __construct()
+    public function __construct(private RoadPlannedRepository $repository)
     {
         $this->debug = App::hasDebugModeEnabled();
     }
@@ -23,55 +24,34 @@ class RoadPlannedController extends BaseController
      * 可透過 ?district=大同區 篩選特定行政區（空間過濾）
      * 可透過 ?category=narrow|mid|wide 篩選寬度分級
      */
-    public function index(RoadPlannedRequest $request)
+    public function index(RoadPlannedRequest $request): JsonResponse
     {
         try {
-            $query = DB::table('roads_planned')
-                ->select(DB::raw('
-                    id,
-                    road_width,
-                    width_m,
-                    width_category,
-                    ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geometry
-                '))
-                ->orderBy('id');
+            $validated = $request->validated();
+            $results   = $this->repository->getFiltered(
+                $validated['district'] ?? null,
+                $validated['category'] ?? null,
+            );
 
-            if ($request->filled('district')) {
-                $query->whereRaw('
-                    ST_Within(
-                        roads_planned.geom,
-                        (SELECT geom FROM districts WHERE district_name = ? LIMIT 1)
-                    )
-                ', [$request->input('district')]);
-            }
-
-            if ($request->filled('category')) {
-                $query->where('width_category', $request->input('category'));
-            }
-
-            $results = $query->get();
-
-            $tableList = $results->map(function($road) {
+            $tableList = $results->map(function ($road) {
                 return [
-                    'id' => (string)$road->id,
-                    'road_width' => (string)$road->road_width,
-                    'width_m' => (float)$road->width_m,
-                    'width_category' => (string)$road->width_category,
-                    'geometry' => json_decode($road->geometry, true),
+                    'id'             => (string) $road->id,
+                    'road_width'     => (string) $road->road_width,
+                    'width_m'        => (float) $road->width_m,
+                    'width_category' => (string) $road->width_category,
+                    'geometry'       => json_decode($road->geometry, true),
                 ];
             })->toArray();
 
             return $this->sendResponse([
                 'tableList' => array_values($tableList),
-                'total' => count($tableList),
+                'total'     => count($tableList),
             ], '獲取計畫道路資料成功!');
 
         } catch (Exception $e) {
-            if ($this->debug == true) {
-                return $this->sendError($e->getMessage(), ['error' => $e->getMessage()]);
-            } else {
-                return $this->sendError('獲取計畫道路資料錯誤,錯誤代碼「RP011」,請通知管理員!!', ['error' => '獲取計畫道路資料錯誤,錯誤代碼「RP011」,請通知管理員!!']);
-            }
+            return $this->debug
+                ? $this->sendError($e->getMessage(), ['error' => $e->getMessage()])
+                : $this->sendError('獲取計畫道路資料錯誤,錯誤代碼「RP011」,請通知管理員!!', ['error' => '獲取計畫道路資料錯誤,錯誤代碼「RP011」,請通知管理員!!']);
         }
     }
 }
