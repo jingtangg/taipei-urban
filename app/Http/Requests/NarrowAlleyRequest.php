@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\AlleyCategory;
 use App\Enums\TaipeiDistrict;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -17,7 +18,7 @@ class NarrowAlleyRequest extends FormRequest
     {
         return [
             'district' => ['nullable', 'string', Rule::in(TaipeiDistrict::ALL)],
-            'category' => ['nullable', 'string', Rule::in(['紅區', '黃區'])],
+            'category' => ['nullable', 'string', Rule::in(AlleyCategory::ALL)],
         ];
     }
 

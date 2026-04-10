@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\RoadCategory;
 use App\Enums\TaipeiDistrict;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -17,7 +18,7 @@ class RoadPlannedRequest extends FormRequest
     {
         return [
             'district' => ['nullable', 'string', Rule::in(TaipeiDistrict::ALL)],
-            'category' => ['nullable', 'string', Rule::in(['narrow', 'mid', 'wide'])],
+            'category' => ['nullable', 'string', Rule::in(RoadCategory::ALL)],
         ];
     }
 
