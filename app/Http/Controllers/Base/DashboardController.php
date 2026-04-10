@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Base;
 
+use App\Enums\CacheKey;
 use App\Http\Controllers\API\BaseController;
 use App\Http\Requests\DashboardFilterRequest;
 use App\Repositories\DashboardRepository;
@@ -28,7 +29,7 @@ class DashboardController extends BaseController
     {
         try {
             $district = $request->validated()['district'] ?? null;
-            $cacheKey = $district ? "narrow_alley_stats_{$district}" : 'narrow_alley_stats_all';
+            $cacheKey = CacheKey::narrowAlleyStats($district);
 
             return Cache::remember($cacheKey, 3600, function () use ($district) {
                 $stats = $this->repository->getNarrowAlleyStatistics($district);
@@ -50,7 +51,7 @@ class DashboardController extends BaseController
     public function districtRankings(): JsonResponse
     {
         try {
-            return Cache::remember('district_rankings', 3600, function () {
+            return Cache::remember(CacheKey::districtRankings(), 3600, function () {
                 $rankings = $this->repository->getDistrictRankings();
                 return $this->sendResponse(['rankings' => $rankings], '獲取行政區排名成功!');
             });
@@ -72,7 +73,7 @@ class DashboardController extends BaseController
     {
         try {
             $district = $request->validated()['district'] ?? null;
-            $cacheKey = $district ? "hydrant_stats_{$district}" : 'hydrant_stats_all';
+            $cacheKey = CacheKey::hydrantStats($district);
 
             return Cache::remember($cacheKey, 3600, function () use ($district) {
                 $stats = $this->repository->getHydrantStatistics($district);
