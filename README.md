@@ -2,7 +2,7 @@
 
 台北市道路、窄巷、消防設施空間資料的 RESTful API 服務。提供 GeoJSON 格式的地理資料供前端地圖渲染，並透過 PostGIS 空間函式進行行政區統計與密度分析。
 
-> **前端地圖**：[taipei-urban_frontend](../taipei-urban_frontend)（React + OpenLayers）
+> **前端地圖**：[taipei-urban_frontend](https://github.com/jingtangg/taipei-urban_frontend)（React + OpenLayers）
 
 ---
 
