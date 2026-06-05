@@ -1,109 +1,110 @@
-# 台北市都市防災地圖｜後端 API
+# Taipei City Urban Disaster Prevention Map | Backend API
 
-台北市道路、窄巷、消防設施空間資料的 RESTful API 服務。提供 GeoJSON 格式的地理資料供前端地圖渲染，並透過 PostGIS 空間函式進行行政區統計與密度分析。
+A RESTful API service for Taipei City road, narrow alley, and fire safety infrastructure spatial data. Serves GeoJSON-format geospatial data for frontend map rendering, and performs administrative district statistics and density analysis via PostGIS spatial functions.
 
-> **前端地圖**：[taipei-urban_frontend](https://github.com/jingtangg/taipei-urban_frontend)（React + OpenLayers）
-
----
-
-## 功能特色
-
-- **空間查詢**：使用 PostGIS `ST_Intersects`、`ST_Transform`、`ST_AsGeoJSON` 進行座標系轉換與空間交集計算
-- **窄巷去重統計**：透過 SQL CTE 合併「計畫窄巷」與「消防局實測新發現」，避免重複計算
-- **快取層**：Dashboard 端點結果快取 3600 秒，`CacheKey` Enum 統一管理 Key 命名
-- **FormRequest 驗證**：行政區名稱以 `Rule::in(TaipeiDistrict::ALL)` 驗證，拒絕無效輸入
-- **統一回應格式**：`BaseController` 提供 `sendResponse()` / `sendError()`，所有端點輸出一致的 JSON envelope
+> **Frontend Map**: [taipei-urban_frontend](https://github.com/jingtangg/taipei-urban_frontend) (React + OpenLayers)
 
 ---
 
-## 技術棧
+## Features
 
-| 類別 | 技術 |
-|------|------|
-| 語言 | PHP 8.2+ |
-| 框架 | Laravel 12 |
-| 資料庫 | PostgreSQL 14+ + PostGIS |
-| 地圖圖磚 | GeoServer 2.x（WMS / SLD） |
-| 架構模式 | Controller → Repository（薄 Controller，查詢邏輯集中在 Repository） |
-| 快取 | Laravel Cache（`Cache::remember`，TTL 3600s） |
-| 部署 | Docker（docker-compose） |
+- **Spatial Queries**: Uses PostGIS `ST_Intersects`, `ST_Transform`, `ST_AsGeoJSON` for coordinate system transformation and spatial intersection calculations
+- **Narrow Alley Deduplication**: Merges "urban-planned narrow alleys" and "fire department field-surveyed new discoveries" via SQL CTE to prevent double-counting
+- **Cache Layer**: Dashboard endpoint results cached for 3600 seconds; `CacheKey` Enum provides centralized key naming
+- **FormRequest Validation**: District names validated with `Rule::in(TaipeiDistrict::ALL)`, rejecting invalid input
+- **Unified Response Format**: `BaseController` provides `sendResponse()` / `sendError()`, all endpoints output a consistent JSON envelope
 
 ---
 
-## 程式架構
+## Tech Stack
+
+| Category | Technology |
+|----------|-----------|
+| Language | PHP 8.2+ |
+| Framework | Laravel 12 |
+| Database | PostgreSQL 14+ + PostGIS |
+| Map Tiles | GeoServer 2.x (WMS / SLD) |
+| Architecture | Controller → Repository (thin Controller, query logic centralized in Repository) |
+| Cache | Laravel Cache (`Cache::remember`, TTL 3600s) |
+| Deployment | Docker (docker-compose) |
+
+---
+
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ HTTP 請求層                                                      │
+│ HTTP Request Layer                                               │
 │ routes/api.php                                                   │
 │   throttle:60,1  →  /taipei/api/*                               │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 請求驗證層                                                       │
+│ Request Validation Layer                                         │
 │ app/Http/Requests/                                               │
 │   DashboardFilterRequest   district → Rule::in(TaipeiDistrict)  │
-│   NarrowAlleyRequest       district + category 雙重驗證          │
+│   NarrowAlleyRequest       district + category dual validation   │
 │   FireHydrantRequest · FireStationRequest · RoadPlannedRequest  │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ Controller 層                                                    │
+│ Controller Layer                                                 │
 │ app/Http/Controllers/Base/                                       │
 │   DistrictController       FireHydrantController                 │
 │   NarrowAlleyController    FireStationController                 │
 │   RoadPlannedController    DashboardController                   │
 │                                                                  │
-│   全部繼承 BaseController                                        │
+│   All extend BaseController                                      │
 │   → sendResponse() / sendError()                                 │
-│   → 統一 JSON：{ success, data, message }                       │
+│   → Unified JSON: { success, data, message }                    │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 快取層（Dashboard 端點）                                         │
+│ Cache Layer (Dashboard endpoints)                                │
 │ Cache::remember(key, 3600, fn)                                   │
-│   CacheKey Enum 產生具名快取 Key                                  │
+│   CacheKey Enum generates named cache keys                       │
 │   taipei_urban:narrow_alley_stats:{district|all}                │
 │   taipei_urban:district_rankings                                 │
 │   taipei_urban:hydrant_stats:{district|all}                     │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ Repository 層                                                    │
+│ Repository Layer                                                 │
 │ app/Repositories/                                                │
 │   DistrictRepository      getAll()                              │
 │                           getAllWithNarrowAlleyCounts()          │
-│                           （單查詢 + 三個子查詢，避免 N+1）       │
+│                           (single query + 3 subqueries, N+1-free)│
 │   NarrowAlleyRepository   getFiltered(district, category)       │
 │   DashboardRepository     getNarrowAlleyStatistics()            │
-│                           getDistrictRankings()（CTE 去重排名）  │
+│                           getDistrictRankings() (CTE dedup rank) │
 │                           getHydrantStatistics()                │
 │   FireHydrantRepository · FireStationRepository                 │
 │   RoadPlannedRepository                                         │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 資料庫層                                                         │
+│ Database Layer                                                   │
 │ PostgreSQL 14 + PostGIS                                          │
-│   空間函式：ST_Intersects · ST_Transform · ST_AsGeoJSON          │
-│             ST_Centroid · ST_Length · ST_AsText                  │
-│   座標系：TWD97 TM2 (EPSG:3826) ↔ WGS84 (EPSG:4326)            │
+│   Spatial functions: ST_Intersects · ST_Transform · ST_AsGeoJSON │
+│                      ST_Centroid · ST_Length · ST_AsText         │
+│   Coordinate systems: TWD97 TM2 (EPSG:3826) ↔ WGS84 (EPSG:4326)│
 └─────────────────────────────────────────────────────────────────┘
           ↓                                ↓
 ┌─────────────────┐             ┌──────────────────────────────┐
-│  JSON API 回應  │             │  GeoServer WMS               │
-│  GeoJSON 線型   │             │  行政區邊界 + SLD 分色渲染    │
-│  + 屬性統計     │             │  districts_density SQL View  │
+│  JSON API       │             │  GeoServer WMS               │
+│  GeoJSON lines  │             │  District boundaries +       │
+│  + statistics   │             │  SLD choropleth rendering    │
+│                 │             │  districts_density SQL View  │
 └─────────────────┘             └──────────────────────────────┘
 ```
 
 ---
 
-## API 端點
+## API Endpoints
 
-所有端點前綴：`/taipei/api`，限流：**60 次 / 分鐘**
+All endpoints prefixed with `/taipei/api`, rate limit: **60 requests / minute**
 
-所有回應格式：
+All responses:
 
 ```json
 {
@@ -113,74 +114,74 @@
 }
 ```
 
-### 行政區
+### Administrative Districts
 
-| 方法 | 路徑 | 說明 |
-|------|------|------|
-| GET | `/districts` | 12 個行政區清單（id、名稱、面積） |
-| GET | `/districts/metadata` | 各行政區中心點座標 + 窄巷總數 |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/districts` | List of 12 districts (id, name, area) |
+| GET | `/districts/metadata` | District centroid coordinates + narrow alley counts |
 
-### 空間圖層
+### Spatial Layers
 
-| 方法 | 路徑 | Query 參數 | 說明 |
-|------|------|-----------|------|
-| GET | `/roads/planned` | `district?` | 計畫道路 GeoJSON（含路寬） |
-| GET | `/narrow-alleys` | `district?` `category?` | 窄巷 GeoJSON（含實測路寬與偏移距離） |
-| GET | `/fire-hydrants` | `district?` | 消防栓座標 |
-| GET | `/fire-stations` | `district?` | 消防局座標 |
+| Method | Path | Query Params | Description |
+|--------|------|-------------|-------------|
+| GET | `/roads/planned` | `district?` | Urban-planned roads GeoJSON (with road width) |
+| GET | `/narrow-alleys` | `district?` `category?` | Narrow alley GeoJSON (with field-measured width and offset distance) |
+| GET | `/fire-hydrants` | `district?` | Fire hydrant coordinates |
+| GET | `/fire-stations` | `district?` | Fire station coordinates |
 
-### Dashboard 統計（有快取）
+### Dashboard Statistics (cached)
 
-| 方法 | 路徑 | Query 參數 | 說明 |
-|------|------|-----------|------|
-| GET | `/dashboard/narrow-alley-statistics` | `district?` | 窄巷總數、計畫數、實測新發現數 |
-| GET | `/dashboard/district-rankings` | — | 12 行政區窄巷密度排名 |
-| GET | `/dashboard/hydrant-statistics` | `district?` | 消防栓總數、密度、服務半徑 |
-
----
-
-## 資料表結構
-
-| 資料表 | 說明 |
-|--------|------|
-| `districts` | 行政區邊界（PostGIS geom，TWD97） |
-| `roads_planned` | 都市計畫道路線型與路寬 |
-| `roads_measured` | 實際測量道路資料 |
-| `narrow_alleys_temp` | 消防局實測窄巷（含 snap 距離與 matched_road_id） |
-| `fire_hydrants` | 消防栓點位 |
-| `fire_stations` | 消防局點位 |
+| Method | Path | Query Params | Description |
+|--------|------|-------------|-------------|
+| GET | `/dashboard/narrow-alley-statistics` | `district?` | Total, planned, and field-surveyed new alley counts |
+| GET | `/dashboard/district-rankings` | — | Narrow alley density rankings across all 12 districts |
+| GET | `/dashboard/hydrant-statistics` | `district?` | Total hydrant count, density, and service radius |
 
 ---
 
-## 快速開始
+## Database Schema
 
-### 環境需求
+| Table | Description |
+|-------|-------------|
+| `districts` | District boundaries (PostGIS geom, TWD97) |
+| `roads_planned` | Urban-planned road geometry and widths |
+| `roads_measured` | Field-measured road data |
+| `narrow_alleys_temp` | Fire department field-surveyed narrow alleys (with snap distance and matched_road_id) |
+| `fire_hydrants` | Fire hydrant point locations |
+| `fire_stations` | Fire station point locations |
 
-- PHP 8.2+、Composer 2
-- PostgreSQL 14+（含 PostGIS 擴充）
+---
+
+## Quick Start
+
+### Requirements
+
+- PHP 8.2+, Composer 2
+- PostgreSQL 14+ (with PostGIS extension)
 - GeoServer 2.x
 
-### 安裝與執行
+### Installation
 
 ```bash
-# 1. 安裝依賴
+# 1. Install dependencies
 composer install
 
-# 2. 設定環境變數
+# 2. Configure environment
 cp .env.example .env
-# 填入 DB_HOST、DB_DATABASE、DB_USERNAME、DB_PASSWORD
+# Fill in DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD
 
-# 3. 產生應用程式金鑰
+# 3. Generate application key
 php artisan key:generate
 
-# 4. 執行 Migration
+# 4. Run migrations
 php artisan migrate
 
-# 5. 啟動開發伺服器（預設 port 8000）
+# 5. Start development server (default port 8000)
 php artisan serve
 ```
 
-### 使用 Docker
+### Using Docker
 
 ```bash
 docker-compose up -d
@@ -188,19 +189,19 @@ docker-compose up -d
 
 ---
 
-## 專案結構
+## Project Structure
 
 ```
 app/
 ├── Enums/
-│   ├── TaipeiDistrict.php      # 台北市 12 行政區常數（驗證白名單）
-│   ├── CacheKey.php            # 快取 Key 命名工廠
-│   ├── RoadCategory.php        # 道路類別
-│   └── AlleyCategory.php       # 窄巷類別
+│   ├── TaipeiDistrict.php      # Taipei City 12-district constants (validation whitelist)
+│   ├── CacheKey.php            # Cache key naming factory
+│   ├── RoadCategory.php        # Road category constants
+│   └── AlleyCategory.php       # Alley category constants
 ├── Http/
 │   ├── Controllers/
 │   │   ├── API/BaseController.php      # sendResponse / sendError
-│   │   └── Base/                       # 各資源 Controller
-│   └── Requests/                       # FormRequest 輸入驗證
-└── Repositories/                       # 資料庫查詢邏輯（PostGIS SQL）
+│   │   └── Base/                       # Per-resource Controllers
+│   └── Requests/                       # FormRequest input validation
+└── Repositories/                       # Database query logic (PostGIS SQL)
 ```
