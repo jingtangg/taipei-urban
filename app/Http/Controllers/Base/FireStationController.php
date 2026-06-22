@@ -30,19 +30,17 @@ class FireStationController extends BaseController
                 $request->validated()['district'] ?? null
             );
 
-            $tableList = $stations->map(function ($station) {
-                return [
-                    'id'       => (string) $station->id,
-                    'name'     => (string) $station->name,
-                    'address'  => (string) $station->address,
-                    'geometry' => json_decode($station->geometry, true),
-                ];
-            })->toArray();
+            $typed = $stations->map(fn($s) => [
+                'id'       => (string) $s->id,
+                'name'     => (string) $s->name,
+                'address'  => (string) $s->address,
+                'geometry' => json_decode($s->geometry),
+            ]);
 
-            return $this->sendResponse([
-                'tableList' => array_values($tableList),
-                'total'     => count($tableList),
-            ], '獲取消防局資料成功!');
+            return $this->sendResponse(
+                $this->toFeatureCollection($typed, 'geometry'),
+                '獲取消防局資料成功!'
+            );
 
         } catch (Exception $e) {
             report($e);

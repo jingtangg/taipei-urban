@@ -30,20 +30,18 @@ class FireHydrantController extends BaseController
                 $request->validated()['district'] ?? null
             );
 
-            $tableList = $hydrants->map(function ($hydrant) {
-                return [
-                    'id'       => (string) $hydrant->id,
-                    'wpid'     => (string) $hydrant->wpid,
-                    'type'     => (string) $hydrant->type,
-                    'district' => (string) $hydrant->district,
-                    'geometry' => json_decode($hydrant->geometry, true),
-                ];
-            })->toArray();
+            $typed = $hydrants->map(fn($h) => [
+                'id'       => (string) $h->id,
+                'wpid'     => (string) $h->wpid,
+                'type'     => (string) $h->type,
+                'district' => (string) $h->district,
+                'geometry' => json_decode($h->geometry),
+            ]);
 
-            return $this->sendResponse([
-                'tableList' => array_values($tableList),
-                'total'     => count($tableList),
-            ], '獲取消防栓資料成功!');
+            return $this->sendResponse(
+                $this->toFeatureCollection($typed, 'geometry'),
+                '獲取消防栓資料成功!'
+            );
 
         } catch (Exception $e) {
             report($e);

@@ -33,23 +33,21 @@ class NarrowAlleyController extends BaseController
                 $validated['category'] ?? null,
             );
 
-            $tableList = $alleys->map(function ($alley) {
-                return [
-                    'id'             => (string) $alley->id,
-                    'alley_name'     => (string) $alley->alley_name,
-                    'district'       => (string) $alley->district,
-                    'category'       => (string) $alley->category,
-                    'width_m'        => (float) $alley->width_m,
-                    'road_width'     => $alley->road_width ? (float) $alley->road_width : null,
-                    'snap_distance_m' => $alley->snap_distance_m ? (float) $alley->snap_distance_m : null,
-                    'geometry'       => json_decode($alley->geometry, true),
-                ];
-            })->toArray();
+            $typed = $alleys->map(fn($a) => [
+                'id'              => (string) $a->id,
+                'alley_name'      => (string) $a->alley_name,
+                'district'        => (string) $a->district,
+                'category'        => (string) $a->category,
+                'width_m'         => (float) $a->width_m,
+                'road_width'      => $a->road_width !== null ? (float) $a->road_width : null,
+                'snap_distance_m' => $a->snap_distance_m !== null ? (float) $a->snap_distance_m : null,
+                'geometry'        => json_decode($a->geometry),
+            ]);
 
-            return $this->sendResponse([
-                'tableList' => array_values($tableList),
-                'total'     => count($tableList),
-            ], '獲取窄巷資料成功!');
+            return $this->sendResponse(
+                $this->toFeatureCollection($typed, 'geometry'),
+                '獲取窄巷資料成功!'
+            );
 
         } catch (Exception $e) {
             report($e);

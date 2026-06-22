@@ -22,6 +22,38 @@ class BaseController extends Controller
     }
 
     /**
+     * 將已型別化的 Collection 包裝成 GeoJSON FeatureCollection (RFC 7946)
+     * $items 每筆需含 $geometryKey 欄位（已解碼的 stdClass 或 array）
+     */
+    protected function toFeatureCollection(
+        \Illuminate\Support\Collection $items,
+        string $geometryKey = 'geometry',
+        array $propertyKeys = []
+    ): array {
+        return [
+            'type' => 'FeatureCollection',
+            'features' => $items->map(function ($item) use ($geometryKey, $propertyKeys) {
+                $row = is_array($item) ? $item : (array) $item;
+
+                $geometry = $row[$geometryKey];
+                if (is_string($geometry)) {
+                    $geometry = json_decode($geometry);
+                }
+
+                $properties = empty($propertyKeys)
+                    ? collect($row)->except($geometryKey)->toArray()
+                    : collect($row)->only($propertyKeys)->toArray();
+
+                return [
+                    'type'       => 'Feature',
+                    'geometry'   => $geometry,
+                    'properties' => $properties,
+                ];
+            })->values()->toArray(),
+        ];
+    }
+
+    /**
      * return error response.
      */
     public function sendError($error, $errorMessages = [], $code = 404): JsonResponse

@@ -33,20 +33,18 @@ class RoadPlannedController extends BaseController
                 $validated['category'] ?? null,
             );
 
-            $tableList = $results->map(function ($road) {
-                return [
-                    'id'             => (string) $road->id,
-                    'road_width'     => (string) $road->road_width,
-                    'width_m'        => (float) $road->width_m,
-                    'width_category' => (string) $road->width_category,
-                    'geometry'       => json_decode($road->geometry, true),
-                ];
-            })->toArray();
+            $typed = $results->map(fn($r) => [
+                'id'             => (string) $r->id,
+                'road_width'     => (string) $r->road_width,
+                'width_m'        => (float) $r->width_m,
+                'width_category' => (string) $r->width_category,
+                'geometry'       => json_decode($r->geometry),
+            ]);
 
-            return $this->sendResponse([
-                'tableList' => array_values($tableList),
-                'total'     => count($tableList),
-            ], '獲取計畫道路資料成功!');
+            return $this->sendResponse(
+                $this->toFeatureCollection($typed, 'geometry'),
+                '獲取計畫道路資料成功!'
+            );
 
         } catch (Exception $e) {
             report($e);
