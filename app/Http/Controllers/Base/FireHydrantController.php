@@ -33,7 +33,7 @@ class FireHydrantController extends BaseController
             $typed = $hydrants->map(fn($h) => [
                 'id'       => (string) $h->id,
                 'wpid'     => (string) $h->wpid,
-                'type'     => (string) $h->type,
+                'type'     => str_contains($h->type, '地上') ? 'aboveground' : 'underground',
                 'district' => (string) $h->district,
                 'geometry' => json_decode($h->geometry),
             ]);
