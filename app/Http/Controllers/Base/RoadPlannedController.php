@@ -38,6 +38,7 @@ class RoadPlannedController extends BaseController
                 'road_width'     => (string) $r->road_width,
                 'width_m'        => (float) $r->width_m,
                 'width_category' => (string) $r->width_category,
+                'risk_level'     => $this->calculateRiskLevel((float) $r->width_m),
                 'geometry'       => json_decode($r->geometry),
             ]);
 

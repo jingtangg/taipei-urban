@@ -39,6 +39,7 @@ class NarrowAlleyController extends BaseController
                 'district'        => (string) $a->district,
                 'category'        => (string) $a->category,
                 'width_m'         => (float) $a->width_m,
+                'risk_level'      => $this->calculateRiskLevel((float) $a->width_m),
                 'road_width'      => $a->road_width !== null ? (float) $a->road_width : null,
                 'snap_distance_m' => $a->snap_distance_m !== null ? (float) $a->snap_distance_m : null,
                 'geometry'        => json_decode($a->geometry),

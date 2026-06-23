@@ -54,6 +54,18 @@ class BaseController extends Controller
     }
 
     /**
+     * 依路寬計算風險等級
+     * 閾值：3.5m（極高風險）/ 6m（高風險）
+     * 此為系統核心判斷邏輯，集中於後端確保所有 API 消費端取得一致結果
+     */
+    protected function calculateRiskLevel(float $widthM): string
+    {
+        if ($widthM < 3.5) return '極高風險';
+        if ($widthM < 6.0) return '高風險';
+        return '一般';
+    }
+
+    /**
      * return error response.
      */
     public function sendError($error, $errorMessages = [], $code = 404): JsonResponse
