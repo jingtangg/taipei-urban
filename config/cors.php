@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'paths' => ['taipei/api/*'],
+    'paths' => ['taipei/api/*', 'hualien/api/*'],
 
     'allowed_methods' => ['*'],
 

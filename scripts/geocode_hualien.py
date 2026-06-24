@@ -13,7 +13,7 @@
 
 用法：
   pip install requests psycopg2-binary python-dotenv
-  python scripts/geocode_hualien.py --csv data/hualien_narrow_alleys.csv
+  python scripts/geocode_hualien.py --csv database/data/csv/hualien_narrow_alleys.csv
 
 環境變數（.env 或 shell）：
   GOOGLE_GEOCODING_KEY=AIza...
@@ -82,38 +82,6 @@ class HualienAlley:
 
 # ── 輔助函式 ─────────────────────────────────────────────────────────────────
 
-def _parse_width(raw: str) -> tuple[float, float]:
-    """
-    解析路寬欄位，回傳 (min, max)。
-    支援：
-      "3.5"        → (3.5, 3.5)
-      "4.2-5.6"   → (4.2, 5.6)
-      "3.5以下"   → (0.0, 3.5)
-      "6以上"     → (6.0, 6.0)
-    """
-    raw = raw.strip()
-    # 範圍型，如 "4.2-5.6"
-    m = re.match(r"^(\d+\.?\d*)[~－\-](\d+\.?\d*)$", raw)
-    if m:
-        return float(m.group(1)), float(m.group(2))
-    # 上限型，如 "3.5以下" / "3.5m以下"
-    m = re.match(r"^(\d+\.?\d*)m?以下$", raw)
-    if m:
-        v = float(m.group(1))
-        return 0.0, v
-    # 下限型，如 "6以上"
-    m = re.match(r"^(\d+\.?\d*)m?以上$", raw)
-    if m:
-        v = float(m.group(1))
-        return v, v
-    # 純數字
-    try:
-        v = float(re.sub(r"[^\d.]", "", raw))
-        return v, v
-    except ValueError:
-        raise ValueError(f"無法解析路寬: {raw!r}")
-
-
 def _parse_length(raw: str) -> Optional[float]:
     """
     解析長度欄位，回傳公尺數（float）或 None。
@@ -154,8 +122,8 @@ def _connect_db() -> psycopg2.extensions.connection:
     return psycopg2.connect(
         host=os.environ["DB_HOST"],
         port=int(os.environ.get("DB_PORT", 5432)),
-        dbname=os.environ["DB_NAME"],
-        user=os.environ["DB_USER"],
+        dbname=os.environ["DB_DATABASE"],
+        user=os.environ["DB_USERNAME"],
         password=os.environ["DB_PASSWORD"],
     )
 
@@ -164,28 +132,35 @@ def _connect_db() -> psycopg2.extensions.connection:
 
 def load_csv(path: str) -> list[HualienAlley]:
     """
-    CSV 欄位（原始中文 header 需對應）：
-      巷道名稱, 鄉鎮市區, 管轄消防局, 長度, 寬度
+    CSV 欄位（花蓮縣消防局實際清冊 header）：
+      編號, 鄉鎮市, 村里, 巷道名稱, 約寬度(公尺), 約長度(公尺),
+      車行動線(單、雙行), 受影響建築物之詳細地址,
+      停車管制原則【花蓮縣狹小巷道管理作業程序】, 劃設禁制標線及需求情形,
+      轄區分隊, 備註, width_m_min, width_m_max
+
+    width_m_min / width_m_max 已由清冊提供，不需再從「約寬度(公尺)」重新解析。
     """
     rows = []
     with open(path, encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
         for i, row in enumerate(reader, 1):
             alley_name  = row.get("巷道名稱", "").strip()
-            township    = row.get("鄉鎮市區", "").strip()
-            fire_station = row.get("管轄消防局", "").strip()
-            length_raw  = row.get("長度", "").strip()
-            width_raw   = row.get("寬度", "").strip()
+            township    = row.get("鄉鎮市", "").strip()
+            fire_station = row.get("轄區分隊", "").strip()
+            length_raw  = row.get("約長度(公尺)", "").strip()
+            w_min_raw   = row.get("width_m_min", "").strip()
+            w_max_raw   = row.get("width_m_max", "").strip()
 
             if not alley_name:
                 log.warning(f"第 {i} 列巷道名稱為空，略過")
                 continue
 
             try:
-                w_min, w_max = _parse_width(width_raw)
-            except ValueError as e:
-                log.warning(f"第 {i} 列 {alley_name!r}: {e}，路寬設為 None，將以 NULL 寫入")
-                w_min, w_max = 0.0, 0.0
+                w_min = float(w_min_raw)
+                w_max = float(w_max_raw)
+            except ValueError:
+                log.warning(f"第 {i} 列 {alley_name!r}: width_m_min/max 缺漏或無法解析，略過")
+                continue
 
             length_m = _parse_length(length_raw)
             risk_level = _calculate_risk_level(w_min)
